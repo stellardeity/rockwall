@@ -1,11 +1,30 @@
 package listener
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"rockwall/proto"
 )
+
+var itHttp = map[string]bool{
+	"GET ": true,
+	"HEAD": true,
+	"POST": true,
+	"PUT ": true,
+	"DELE": true,
+	"CONN": true,
+	"OPTI": true,
+	"TRAC": true,
+	"PATC": true,
+}
+
+func ItIsHttp(ba []byte) bool {
+	return itHttp[string(ba)]
+}
 
 func StartListener(node *proto.Node) {
 	listen, err := net.Listen("tcp", "0.0.0.0"+node.Address.Port)
@@ -23,23 +42,39 @@ func StartListener(node *proto.Node) {
 }
 
 func handleConnection(node *proto.Node, conn net.Conn) {
-	defer conn.Close()
-	var (
-		buffer  = make([]byte, 512)
-		message string
-		pack    proto.Package
-	)
-	for {
-		length, err := conn.Read(buffer)
-		if err != nil {
-			break
-		}
-		message += string(buffer[:length])
-	}
-	err := json.Unmarshal([]byte(message), &pack)
+	defer func() {
+		conn.Close()
+	}()
+
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	readWriter := bufio.NewReadWriter(reader, writer)
+
+	data, err := readWriter.Peek(4)
 	if err != nil {
+		log.Printf("error: %s", err)
 		return
 	}
+
+	if ItIsHttp(data) {
+		log.Printf("HTTP-request")
+		return
+	}
+
+	message, err := io.ReadAll(reader)
+	if err != nil {
+		log.Printf("data reading error: %s", err)
+		return
+	}
+
+	var pack proto.Package
+	err = json.Unmarshal(message, &pack)
+	if err != nil {
+		log.Printf("JSON deserialization error: %s", err)
+		return
+	}
+
 	node.ConnectTo([]string{pack.From})
+
 	fmt.Println(pack.Data)
 }
