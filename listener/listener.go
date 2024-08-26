@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
+	"path"
 	"rockwall/proto"
+	"strings"
 )
 
 var itHttp = map[string]bool{
@@ -58,6 +62,7 @@ func handleConnection(node *proto.Node, conn net.Conn) {
 
 	if ItIsHttp(data) {
 		log.Printf("HTTP-request")
+		handleHttp(readWriter, conn)
 		return
 	}
 
@@ -77,4 +82,46 @@ func handleConnection(node *proto.Node, conn net.Conn) {
 	node.ConnectTo([]string{pack.From})
 
 	fmt.Println(pack.Data)
+}
+
+func handleHttp(rw *bufio.ReadWriter, conn net.Conn) {
+	request, err := http.ReadRequest(rw.Reader)
+
+	if err != nil {
+		log.Printf("Read request ERROR: %s", err)
+		return
+	}
+
+	response := http.Response{
+		StatusCode: 200,
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+	}
+
+	s := conn.RemoteAddr().String()[0:3]
+	// TODO: сравнение среза со строкой
+	if !strings.EqualFold(s, "127") && !strings.EqualFold(s, "[::") {
+		response.Body = ioutil.NopCloser(strings.NewReader("Banner"))
+	} else {
+		if path.Clean(request.URL.Path) == "/ws" {
+			handleWs(NewMyWriter(conn), request)
+			return
+		} else {
+			processRequest(request, &response)
+			//fileServer := http.FileServer(http.Dir("./front/build/"))
+			//fileServer.ServeHTTP(NewMyWriter(conn), request)
+		}
+	}
+
+	err = response.Write(rw)
+	if err != nil {
+		log.Printf("Write response ERROR: %s", err)
+		return
+	}
+
+	err = rw.Writer.Flush()
+	if err != nil {
+		log.Printf("Flush response ERROR: %s", err)
+		return
+	}
 }
