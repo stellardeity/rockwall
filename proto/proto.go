@@ -3,6 +3,7 @@ package proto
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 )
 
@@ -57,6 +58,13 @@ func (node *Node) Send(pack *Package) {
 		return
 	}
 	defer conn.Close()
+
 	jsonPack, _ := json.Marshal(*pack)
 	conn.Write(jsonPack)
+
+	// err := c.WriteMessage(mt, jsonPack)
+	if err != nil {
+		log.Printf("ws write error: %s", err)
+	}
+
 }

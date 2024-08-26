@@ -3,7 +3,6 @@ package listener
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -62,7 +61,7 @@ func handleConnection(node *proto.Node, conn net.Conn) {
 
 	if ItIsHttp(data) {
 		log.Printf("HTTP-request")
-		handleHttp(readWriter, conn)
+		handleHttp(readWriter, conn, node)
 		return
 	}
 
@@ -81,10 +80,10 @@ func handleConnection(node *proto.Node, conn net.Conn) {
 
 	node.ConnectTo([]string{pack.From})
 
-	fmt.Println(pack.Data)
+	log.Printf("MESSAGE: " + pack.Data)
 }
 
-func handleHttp(rw *bufio.ReadWriter, conn net.Conn) {
+func handleHttp(rw *bufio.ReadWriter, conn net.Conn, node *proto.Node) {
 	request, err := http.ReadRequest(rw.Reader)
 
 	if err != nil {
@@ -104,7 +103,7 @@ func handleHttp(rw *bufio.ReadWriter, conn net.Conn) {
 		response.Body = ioutil.NopCloser(strings.NewReader("Banner"))
 	} else {
 		if path.Clean(request.URL.Path) == "/ws" {
-			handleWs(NewMyWriter(conn), request)
+			handleWs(NewMyWriter(conn), request, node)
 			return
 		} else {
 			processRequest(request, &response)

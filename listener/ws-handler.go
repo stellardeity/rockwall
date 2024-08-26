@@ -3,6 +3,7 @@ package listener
 import (
 	"log"
 	"net/http"
+	"rockwall/proto"
 
 	"github.com/gorilla/websocket"
 )
@@ -13,7 +14,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func handleWs(w http.ResponseWriter, r *http.Request) {
+func handleWs(w http.ResponseWriter, r *http.Request, node *proto.Node) {
 	c, err := upgrader.Upgrade(w, r, w.Header())
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -28,11 +29,20 @@ func handleWs(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		log.Printf("ws read: [%v] %s", mt, message)
+		node.SendMessageToAll(string(message))
+		writeToWs(c, mt, message)
 
 		err = c.WriteMessage(mt, message)
 		if err != nil {
 			log.Printf("ws write error: %v", err)
 			break
 		}
+	}
+}
+
+func writeToWs(c *websocket.Conn, mt int, message []byte) {
+	err := c.WriteMessage(mt, message)
+	if err != nil {
+		log.Printf("ws write error: %s", err)
 	}
 }
