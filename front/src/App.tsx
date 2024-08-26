@@ -2,15 +2,16 @@ import React from 'react';
 import './App.css';
 
 function App() {
-  let socket = new WebSocket("ws://" + document.location.hostname + (document.location.port ? ':' + document.location.port : '') + "/ws");
+  let ws = new WebSocket("ws://" + document.location.hostname + (document.location.port ? ':' + document.location.port : '') + "/ws");
 
-  socket.onopen = (() => {
-    console.log("connection")
-  })
-
-  socket.onmessage = ((message) => {
-    console.log(message)
-  })
+  ws.onopen = () => {
+    console.log("connection success");
+    ws.send("Hello from browser!");
+  };
+  
+  ws.onmessage = (event) => {
+    console.log("message:", event.data);
+  }
 
   return (
     <div className="App">

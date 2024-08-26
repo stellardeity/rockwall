@@ -28,5 +28,11 @@ func handleWs(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		log.Printf("ws read: [%v] %s", mt, message)
+
+		err = c.WriteMessage(mt, message)
+		if err != nil {
+			log.Printf("ws write error: %v", err)
+			break
+		}
 	}
 }
