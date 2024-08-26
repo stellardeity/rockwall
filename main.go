@@ -1,44 +1,25 @@
 package main
 
 import (
-	"flag"
-	"log"
 	"os"
-	"os/user"
 	"rockwall/discover"
 	"rockwall/listener"
 	"rockwall/proto"
 	"strings"
 )
 
-type InitParams struct {
-	Name    *string
-	Address *string
-}
-
-var initParams InitParams
-
 func init() {
-	currentUser, _ := user.Current()
-	hostName, _ := os.Hostname()
-
-	initParams = InitParams{
-		Name:    flag.String("name", currentUser.Username+"@"+hostName, "your name"),
-		Address: flag.String("address", "192.168.0.100:8080", "the address of the peer to connect to"),
+	if len(os.Args) != 2 {
+		panic("len args != 2")
 	}
-
-	flag.Parse()
-
-	log.SetOutput(os.Stdout)
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 }
 
 func main() {
-	NewNode().Run(listener.StartListener, discover.StartDiscover)
+	NewNode(os.Args[1]).Run(listener.StartListener, discover.StartDiscover)
 }
 
-func NewNode() *proto.Node {
-	splited := strings.Split(*initParams.Address, ":")
+func NewNode(address string) *proto.Node {
+	splited := strings.Split(address, ":")
 	if len(splited) != 2 {
 		return nil
 	}
