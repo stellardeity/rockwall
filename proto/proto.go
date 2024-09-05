@@ -73,7 +73,6 @@ func NewProto(name string, port int) *Proto {
 }
 
 func (p Proto) SendName(peer *Peer) {
-
 	exchPubKey, exchPrivKey := CreateKeyExchangePair()
 
 	handShake := HandShake{

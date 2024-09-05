@@ -98,8 +98,6 @@ func handleHttp(rw *bufio.ReadWriter, conn net.Conn, p *proto.Proto) {
 
 	response := http.Response{
 		StatusCode: 200,
-		ProtoMajor: 1,
-		ProtoMinor: 1,
 	}
 
 	s := conn.RemoteAddr().String()[0:3]
@@ -107,7 +105,6 @@ func handleHttp(rw *bufio.ReadWriter, conn net.Conn, p *proto.Proto) {
 	if !strings.EqualFold(s, "127") && !strings.EqualFold(s, "[::") {
 		response.Body = ioutil.NopCloser(strings.NewReader("Rockwall"))
 	} else {
-
 		if path.Clean(request.URL.Path) == "/ws" {
 			handleWs(NewMyWriter(conn), request, p)
 			return
