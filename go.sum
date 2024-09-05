@@ -1,4 +1,6 @@
+github.com/easmith/p2p-messenger v0.0.0-20190202220344-f60ece232e74 h1:kpcyPSxm2MBPcXobvFm/BAtkvP3gkqoFcdJG69gHfkc=
+github.com/easmith/p2p-messenger v0.0.0-20190202220344-f60ece232e74/go.mod h1:fATs00/bCAGkeh0bLyK4pzK+h2ZaXZUcucWyp/qnrIM=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/minio/websocket v1.6.0 h1:CPvnQvNvlVaQmvw5gtJNyYQhg4+xRmrPNhBbv8BdpAE=
-github.com/minio/websocket v1.6.0/go.mod h1:COH1CePZfHT9Ec1O7vZjTlX5uEPpyYnrifPNbu665DM=
+golang.org/x/crypto v0.26.0 h1:RrRspgV4mU+YwB4FYnuBoKsUapNIL5cohGAmSH3azsw=
+golang.org/x/crypto v0.26.0/go.mod h1:GY7jblb9wI+FOo5y8/S2oY4zWP07AkOJ4+jxCqdqn54=

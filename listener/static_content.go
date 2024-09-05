@@ -33,7 +33,6 @@ func processRequest(request *http.Request, response *http.Response) {
 		files, err := readDir(filePath)
 		if err != nil {
 			response.StatusCode = 500
-			// TODO: приведение ошибки к нужному типу, для получения конкретных свойств
 			response.Body = ioutil.NopCloser(strings.NewReader("Internal server error: " + err.(*os.PathError).Err.Error()))
 		}
 		filesString := strings.Join(files[:], "\n")
@@ -44,7 +43,6 @@ func processRequest(request *http.Request, response *http.Response) {
 	responseFile(response, filePath)
 }
 
-// Отдает содержимое файла
 func responseFile(response *http.Response, fileName string) {
 	file, err := os.Open(fileName)
 
@@ -61,7 +59,6 @@ func responseFile(response *http.Response, fileName string) {
 	response.Body = file
 }
 
-// Отдает список содержимого каталога
 func readDir(root string) ([]string, error) {
 	var files []string
 	f, err := os.Open(root)
@@ -75,8 +72,6 @@ func readDir(root string) ([]string, error) {
 	}
 
 	for _, file := range fileInfo {
-		// TODO: нет тернарного оператора
-		// files = append(files, file.Name() + (file.IsDir() ? "/" : ""))
 		if file.IsDir() {
 			files = append(files, file.Name()+"/")
 		} else {

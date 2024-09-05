@@ -2,12 +2,13 @@ package listener
 
 import (
 	"bufio"
-	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path"
 	"rockwall/proto"
 	"strings"
@@ -29,61 +30,65 @@ func ItIsHttp(ba []byte) bool {
 	return itHttp[string(ba)]
 }
 
-func StartListener(node *proto.Node) {
-	listen, err := net.Listen("tcp", "0.0.0.0"+node.Address.Port)
+func StartListener(proto *proto.Proto, port int) {
+	if port <= 0 || port > 65535 {
+		port = 35035
+	}
+
+	service := fmt.Sprintf("0.0.0.0:%v", port)
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", service)
 	if err != nil {
-		panic("listen error")
+		log.Printf("ResolveTCPAddr: %s", err.Error())
+		os.Exit(1)
 	}
-	defer listen.Close()
+
+	listener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		log.Printf("ListenTCP: %s", err.Error())
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n\tService start on %s\n\n", tcpAddr.String())
 	for {
-		conn, err := listen.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
-			break
+			continue
 		}
-		go handleConnection(node, conn)
+		go onConnection(conn, proto)
 	}
+
 }
 
-func handleConnection(node *proto.Node, conn net.Conn) {
+func onConnection(conn net.Conn, p *proto.Proto) {
 	defer func() {
 		conn.Close()
 	}()
 
+	log.Printf("New connection from: %v", conn.RemoteAddr().String())
+
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
+
 	readWriter := bufio.NewReadWriter(reader, writer)
 
-	data, err := readWriter.Peek(4)
+	buf, err := readWriter.Peek(4)
 	if err != nil {
-		log.Printf("error: %s", err)
+		if err != io.EOF {
+			log.Printf("Read peak ERROR: %s", err)
+		}
 		return
 	}
 
-	if ItIsHttp(data) {
-		log.Printf("HTTP-request")
-		handleHttp(readWriter, conn, node)
-		return
+	if ItIsHttp(buf) {
+		handleHttp(readWriter, conn, p)
+	} else {
+		peer := proto.NewPeer(conn)
+		p.HandleProto(readWriter, peer)
 	}
-
-	message, err := io.ReadAll(reader)
-	if err != nil {
-		log.Printf("data reading error: %s", err)
-		return
-	}
-
-	var pack proto.Package
-	err = json.Unmarshal(message, &pack)
-	if err != nil {
-		log.Printf("JSON deserialization error: %s", err)
-		return
-	}
-
-	node.ConnectTo([]string{pack.From})
-
-	log.Printf("MESSAGE: " + pack.Data)
 }
 
-func handleHttp(rw *bufio.ReadWriter, conn net.Conn, node *proto.Node) {
+func handleHttp(rw *bufio.ReadWriter, conn net.Conn, p *proto.Proto) {
 	request, err := http.ReadRequest(rw.Reader)
 
 	if err != nil {
@@ -98,17 +103,16 @@ func handleHttp(rw *bufio.ReadWriter, conn net.Conn, node *proto.Node) {
 	}
 
 	s := conn.RemoteAddr().String()[0:3]
-	// TODO: сравнение среза со строкой
+
 	if !strings.EqualFold(s, "127") && !strings.EqualFold(s, "[::") {
-		response.Body = ioutil.NopCloser(strings.NewReader("Banner"))
+		response.Body = ioutil.NopCloser(strings.NewReader("Rockwall"))
 	} else {
+
 		if path.Clean(request.URL.Path) == "/ws" {
-			handleWs(NewMyWriter(conn), request, node)
+			handleWs(NewMyWriter(conn), request, p)
 			return
 		} else {
 			processRequest(request, &response)
-			//fileServer := http.FileServer(http.Dir("./front/build/"))
-			//fileServer.ServeHTTP(NewMyWriter(conn), request)
 		}
 	}
 
