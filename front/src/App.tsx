@@ -1,23 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { Button, ConfigProvider, Input, Space } from "antd";
-
-interface IState {
-  socket: any;
-  iam: any;
-  interlocutor: any;
-  messages: any;
-}
-
-type MessageType = {
-  name: string;
-  id: string;
-  cmd: "NAME" | "MESS" | "PEERS";
-  from: string;
-  to: string;
-  peers: any;
-  content: string;
-};
+import { Button, ConfigProvider, Input, Space, UploadFile } from "antd";
+import { Message as Dialog } from "./entities/message";
+import { Peer } from "./entities/peer";
+import {
+  DialogType,
+  ISocketMessage,
+  IState,
+  PeersType,
+  PeerType,
+} from "./interfaces";
+import { UploadMusic } from "./entities/upload";
 
 const socket = new WebSocket(
   "ws://" +
@@ -28,15 +20,15 @@ const socket = new WebSocket(
 
 function App() {
   const [msg, setMsg] = useState("");
+  const [peers, setPeers] = useState<PeersType>({});
+  const [file, setFile] = useState<UploadFile>();
   const [state, setState] = useState<IState>({
-    socket: null,
     iam: null,
     interlocutor: null,
-    messages: [],
+    messages: {},
   });
-  const [peers, setPeers] = useState<any>([]);
 
-  const handler = (msgObj: MessageType) => {
+  const handler = (msgObj: ISocketMessage) => {
     switch (msgObj.cmd) {
       case "NAME": {
         setState((prev: IState) => ({
@@ -46,8 +38,8 @@ function App() {
         break;
       }
       case "PEERS": {
-        const peers: MessageType["peers"] = {};
-        msgObj.peers.forEach((p: MessageType["peers"]) => {
+        const peers: PeersType = {};
+        msgObj.peers.forEach((p) => {
           const v = peers[p.id];
           p.counter = v ? v.counter : 0;
           peers[p.id] = p;
@@ -60,7 +52,7 @@ function App() {
         let fromName = "";
         let counter = 0;
 
-        if (msgObj.from === state.iam.id) {
+        if (state.iam && msgObj.from === state.iam.id) {
           peerId = msgObj.to;
           fromName = state.iam.name;
         } else {
@@ -83,7 +75,7 @@ function App() {
           date: new Date().toLocaleTimeString(["ru-RU", "en-US"], {
             hour12: false,
           }),
-          isMine: msgObj.from === state.iam.id,
+          isMine: msgObj.from === state.iam?.id,
           from: fromName,
           content: msgObj.content,
         };
@@ -94,7 +86,14 @@ function App() {
           ...prev,
           messages: { [peerId]: oldMessages, ...prev.messages },
         }));
-        setPeers((prev: any) => ({ ...prev, [peerId]: counter }));
+        setPeers((prev: PeersType) => ({
+          ...prev,
+          [peerId]: {
+            counter,
+            id: "",
+            name: "",
+          },
+        }));
         break;
       }
       default: {
@@ -104,13 +103,11 @@ function App() {
   };
 
   socket.onopen = () => {
-    console.log("Соединение установлено.");
     socket.send(JSON.stringify({ cmd: "HELLO" }));
     socket.send(JSON.stringify({ cmd: "PEERS" }));
   };
 
   socket.onmessage = (event) => {
-    console.log("Получены данные " + event.data);
     const parsedMessage = JSON.parse(event.data);
 
     if (!parsedMessage.cmd) {
@@ -124,23 +121,26 @@ function App() {
   const sendMessage = () => {
     const cmd = JSON.stringify({
       cmd: "MESS",
-      from: state.iam.id,
-      to: state.interlocutor.id,
-      content: msg,
+      from: state.iam?.id,
+      to: state.interlocutor?.id,
+      content: file?.name || msg,
     });
     socket.send(cmd);
   };
 
-  const selectPeer = (peer: any) => {
+  const selectPeer = (peer: PeerType) => {
     setState((prev: IState) => ({
       ...prev,
       interlocutor: peer,
     }));
-    setPeers((prev: any) => ({ ...prev, [peer.id]: 0 }));
+    setPeers((prev: PeersType) => ({
+      ...prev,
+      [peer.id]: { id: "", name: "", counter: 0 },
+    }));
   };
 
-  socket.onerror = function (error: any) {
-    console.log("Ошибка " + error.message);
+  socket.onerror = function (error) {
+    console.log("Ошибка " + error);
   };
 
   socket.onclose = (event) => {
@@ -152,38 +152,25 @@ function App() {
     console.log("Код: " + event.code + " причина: " + event.reason);
   };
 
-  const interlocutorName = state.interlocutor
-    ? " with " + state.interlocutor.name
-    : "";
-
   return (
     <ConfigProvider>
       <Space>
         {peers &&
           Object.keys(peers)?.map((id) => {
             return (
-              <div
-                key={id}
-                data-name={peers[id].name}
-                data-id={id}
-                onClick={() => selectPeer({ id, name: peers[id].name })}
-              >
-                <div>{peers[id].name}</div>
-                <div>
-                  <div>{peers[id].counter > 0 ? peers[id].counter : ""}</div>
-                </div>
-              </div>
+              <Peer key={id} id={id} peers={peers} selectPeer={selectPeer} />
             );
           })}
-        <p>{interlocutorName}</p>
+        <p>{state.interlocutor ? " with " + state.interlocutor.name : ""}</p>
         <div>
           {state.messages &&
-            Object.values(state.messages)?.map((data: any) => {
-              return data.map((data: any) => (
-                <div key={data.date}><p>{data.from}</p><p>{data.content}</p></div>
-              ));
-            })}
+            Object.values(state.messages)?.map((data: DialogType[]) =>
+              data.map((data: DialogType) => (
+                <Dialog key={data.date} {...data} />
+              ))
+            )}
         </div>
+        <UploadMusic setFile={setFile} />
         <Input
           placeholder="Please Input"
           value={msg}
